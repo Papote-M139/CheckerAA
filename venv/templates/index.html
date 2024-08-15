@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PayPal Transaction Simulator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>PayPal Transaction Simulator</h1>
+
+    <!-- Formulario para validar una sola tarjeta -->
+    <form id="cardForm">
+        <label for="card_number">Card Number:</label><br>
+        <input type="text" id="card_number" name="card_number" required pattern="\d{13,19}" title="Please enter a valid card number (13-19 digits)."><br>
+        <label for="exp_month">Expiration Month:</label><br>
+        <input type="text" id="exp_month" name="exp_month" required pattern="0[1-9]|1[0-2]" title="Enter a valid month (01-12)."><br>
+        <label for="exp_year">Expiration Year:</label><br>
+        <input type="text" id="exp_year" name="exp_year" required pattern="\d{2,4}" title="Enter a valid year (2 or 4 digits)."><br>
+        <label for="cvc">CVC:</label><br>
+        <input type="text" id="cvc" name="cvc" required pattern="\d{3,4}" title="Enter a valid CVC (3 or 4 digits)."><br>
+        <input type="submit" value="Check Card">
+    </form>
+
+    <div id="loading" style="display:none;">Processing, please wait...</div>
+
+    <div class="result" id="result" style="display:none;">
+        <h2>Card Information</h2>
+        <p><strong>Card Type:</strong> <span id="card_type"></span></p>
+        <p><strong>Luhn Valid:</strong> <span id="luhn_valid"></span></p>
+        <p><strong>MII:</strong> <span id="mii"></span></p>
+        <p><strong>Bank:</strong> <span id="bank"></span></p>
+        <p><strong>Country:</strong> <span id="country"></span></p>
+        <p><strong>Brand:</strong> <span id="brand"></span></p>
+        <p><strong>Type:</strong> <span id="type"></span></p>
+        <h2>Transaction Status</h2>
+        <p><strong>Can Purchase:</strong> <span id="can_purchase"></span></p>
+        <p><strong>Error:</strong> <span id="transaction_error"></span></p>
+    </div>
+
+    <div id="error" style="display:none; color:red;"></div>
+
+    <!-- Formulario para cargar un archivo CSV -->
+    <h2>Upload CSV File</h2>
+    <form id="uploadForm" enctype="multipart/form-data" method="post" action="/upload">
+        <input type="file" name="file" id="file" accept=".csv" required><br>
+        <input type="submit" value="Upload and Validate">
+    </form>
+
+    <!-- Botón para descargar el archivo CSV con las tarjetas válidas -->
+    <h2>Download Valid Cards</h2>
+    <a href="/download" id="downloadLink" style="display:none;" class="button">Download Valid Cards</a>
+
+    <script>
+        document.getElementById('cardForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            // Mostrar mensaje de carga
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('result').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+
+            const formData = new FormData(event.target);
+
+            try {
+                const response = await fetch('/check_card', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
+                const data = await response.json();
+
+                // Mostrar resultados
+                document.getElementById('card_type').innerText = data.card_type;
+                document.getElementById('luhn_valid').innerText = data.luhn_valid ? 'Yes' : 'No';
+                document.getElementById('mii').innerText = data.mii;
+                document.getElementById('bank').innerText = data.bin_info.bank;
+                document.getElementById('country').innerText = data.bin_info.country;
+                document.getElementById('brand').innerText = data.bin_info.brand;
+                document.getElementById('type').innerText = data.bin_info.type;
+                document.getElementById('can_purchase').innerText = data.can_purchase ? 'Yes' : 'No';
+                document.getElementById('transaction_error').innerText = data.transaction_error || 'None';
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('result').style.display = 'block';
+
+            } catch (error) {
+                // Manejo de errores
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').innerText = `Error: ${error.message}`;
+                document.getElementById('error').style.display = 'block';
+            }
+        });
+
+        document.getElementById('uploadForm').addEventListener('submit', function() {
+            // Mostrar el enlace de descarga después de la validación del archivo CSV
+            document.getElementById('downloadLink').style.display = 'block';
+        });
+    </script>
+</body>
+</html>
